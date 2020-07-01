@@ -100,6 +100,10 @@ class Space2D:
         agent.pos = pos
 
     def moveAgent(self, agent: Agent, pos):
+        """
+        Moves the given agent to a new position.
+
+        """
         cord = self.posToCord(agent.pos)
         agents = self.getBlock(cord)
         agents.remove(agent)
@@ -120,9 +124,11 @@ class Space2D:
 
     def neighbours(self, pos, n):
         """
-        Returns the nearest n agents in the space, sorted by distance.
+        Returns the nearest n agents in the space, sorted by distance. Note that
+        the agent at the given position will also be returned.
+
         :param pos: the position
-        :param n:
+        :param n: the number of neighbours.
         :return:
         """
         cord = self.posToCord(pos)
@@ -170,6 +176,10 @@ class Space2D:
         return x, y
 
     def tick(self):
+        """
+        Override this method.
+        :return:
+        """
         self.tickCount += 1
         pass
 
@@ -185,8 +195,8 @@ class Space2D:
             xs.append(x)
             ys.append(y)
             cs.append(colorMap(a))
-
-        ax.scatter(xs, ys, color=cs,s=2)
+        ax.scatter(xs, ys, color=cs,s=1.5)
+        ax.set_title(f"{self.tickCount}-th iteration")
         return fig
 
     # def run(self):
