@@ -4,6 +4,7 @@ from typing import List, Tuple
 import numpy as np
 from matplotlib import pyplot as plt
 
+
 class Agent:
 
     def __init__(self) -> None:
@@ -62,7 +63,7 @@ class Space2D:
         (i, j) = cord
         return self.blocks[i][j]
 
-    def neighbourBlocks(self, cord, m=1):
+    def adjacentBlocks(self, cord, m=1):
         (i, j) = cord
         blocks = []
         for di in range(-m, m + 1):
@@ -73,7 +74,7 @@ class Space2D:
                 blocks.append(c)
         return blocks
 
-    def neighbourBlockBoundary(self, cord, n):
+    def adjacentBlockBoundaries(self, cord, n):
         (i, j) = cord
         blocks = []
         for d in range(-n, n + 1):
@@ -133,7 +134,7 @@ class Space2D:
         """
         cord = self.posToCord(pos)
         m = int(n ** 0.5 / 2)
-        blocks = self.neighbourBlocks(cord, m)
+        blocks = self.adjacentBlocks(cord, m)
 
         agents: List[Tuple[Agent, float]] = []
 
@@ -148,7 +149,7 @@ class Space2D:
 
         agents = sorted(agents, key=lambda pair: pair[1], reverse=True)
         threshold = self.minDistanceToGrid(pos) + m * self.blockSize
-        d2 = threshold*threshold
+        d2 = threshold * threshold
         results = []
         while len(results) < n:
             if len(agents) > 0:
@@ -160,7 +161,7 @@ class Space2D:
             m += 1
             threshold += self.blockSize
             d2 = threshold * threshold
-            blocks = self.neighbourBlockBoundary(cord, m)
+            blocks = self.adjacentBlockBoundaries(cord, m)
             if len(blocks) == 0:
                 break
             appendAgents(blocks, agents)
@@ -178,26 +179,46 @@ class Space2D:
     def tick(self):
         """
         Override this method.
+
         :return:
         """
         self.tickCount += 1
         pass
 
-    def draw(self, colorMap):
+
+class SpaceDrawer:
+
+    def __init__(self,
+                 colorMap=(lambda x: 'black'),
+                 folder="../out") -> None:
+        super().__init__()
+        self.colorMap = colorMap
+        self.folder = folder
+
+    def draw(self, space):
+        pointSize = 40000 / space.agentCount
         fig, ax = plt.subplots()
-        ax.set_xlim(0, self.size)
-        ax.set_ylim(0, self.size)
+        ax.set_xlim(0, space.size)
+        ax.set_ylim(0, space.size)
         xs = []
         ys = []
         cs = []
-        for a in self.agents:
+        for a in space.agents:
             (x, y) = a.pos
             xs.append(x)
             ys.append(y)
-            cs.append(colorMap(a))
-        ax.scatter(xs, ys, color=cs,s=1.5)
-        ax.set_title(f"{self.tickCount}-th iteration")
+            cs.append(self.colorMap(a))
+        ax.scatter(xs, ys, color=cs, s=pointSize,
+                   marker=',', edgecolors='none')
+        ax.set_title(f"{space.tickCount}-th iteration")
         return fig
 
-    # def run(self):
-    #     self.init()
+    def drawAndSave(self, space):
+        dpi = min(int(space.agentCount ** 0.5) * 0.5 + 50, 400)
+        import os
+        fig = self.draw(space)
+        folder = self.folder
+        if not os.path.exists(folder):
+            os.mkdir(folder)
+        fig.savefig(f"{folder}/{space.tickCount}.png", dpi=dpi)
+        plt.close(fig)

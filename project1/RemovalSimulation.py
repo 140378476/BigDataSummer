@@ -1,9 +1,9 @@
 import random
 
-from project1.Core import Space2D, Agent
+from project1.Core import Space2D, Agent, SpaceDrawer
 from matplotlib import pyplot as plt
 
-colors = ['blue', 'red', 'green']
+colors = ['blue', 'red', 'yellow', 'green']
 
 
 def typeToColor(type):
@@ -26,12 +26,16 @@ class RemovalSimulation(Space2D):
 
     def __init__(self, size, agentCount) -> None:
         super().__init__(size, agentCount)
-        self.percent = 0.7  # 70% to 30%
+        self.distribution = (7, 3)  # the distribution of types of agents, default: 70% to 30%,
         self.n = 5  # n neighbours
         self.k = 3  # removal when there are more than k neighbours of different type
         self.rules = []
         # a list of rules to decide whether to move, each item is a function that
         # takes this RemovalSimulation object and the agent as parameter
+
+        self.selectionPercent = 0.7
+        # choose an area where the percentage of the agents of the same type the above this
+        self.maxSelectionCount = 5
 
         self.removalCounts = []  # count of removal of each tick
 
@@ -42,30 +46,34 @@ class RemovalSimulation(Space2D):
 
     def init(self):
         super().init()
-        count = int(self.agentCount * self.percent)
-        for _ in range(count):
-            pos = self.randomPos()
-            self.addAgent(RemovalAgent(0), pos)
-        for _ in range(count, self.agentCount):
-            pos = self.randomPos()
-            self.addAgent(RemovalAgent(1), pos)
+        total = sum(self.distribution)
+        for (i, d) in enumerate(self.distribution):
+            n = int(d * self.agentCount / total)
+            for _ in range(n):
+                pos = self.randomPos()
+                self.addAgent(RemovalAgent(i), pos)
         self.initRules()
 
     def tick(self):
         super().tick()
-        count = 0
+        counting = dict()
         for (i, a) in enumerate(self.agents):
             if self.decideRemoval(a):
-                self.moveAgent(a, self.randomPos())
-                count += 1
+                pos = self.selectRemovalPosition(a)
+                self.moveAgent(a, pos)
+                if a.type not in counting:
+                    counting[a.type] = 1
+                else:
+                    counting[a.type] += 1
+
             # if i % 100 == 0:
             #     print(i)
-        self.removalCounts.append(count)
-        print(count)
+        self.removalCounts.append(counting)
+        print(counting)
 
     def decideRemoval(self, a):
         for r in self.rules:
-            if r(a): # one rule is satisfied
+            if r(a):  # one rule is satisfied
                 return True
         return False
 
@@ -77,7 +85,7 @@ class RemovalSimulation(Space2D):
         """
         rules = self.rules
 
-        # rules.append(self.ruleType)
+        rules.append(self.ruleType)
         rules.append(self.ruleRandom)
 
     def ruleType(self, a):
@@ -105,21 +113,45 @@ class RemovalSimulation(Space2D):
         """
         return random.random() < 0.02
 
+    def selectRemovalPosition(self, a):
+        for _ in range(self.maxSelectionCount):
+            pos = self.randomPos()
+            blocks = self.adjacentBlocks(self.posToCord(pos), 2)
+            totalCount = 0
+            sameTypeCount = 0
+            for cord in blocks:
+                for t in self.getBlock(cord):
+                    totalCount += 1
+                    if a.type == t.type:
+                        sameTypeCount += 1
+            if totalCount == 0 or sameTypeCount / totalCount > self.selectionPercent:
+                return pos
 
-def drawAndSave(rs):
-    fig = rs.draw(RemovalAgent.getColor)
-    fig.savefig(f"../out/{rs.tickCount}.png", dpi=200)
-    plt.close(fig)
+        return self.randomPos()
+
+
+def saveStatistics(rs, folder="../out"):
+    import os
+    if not os.path.exists(folder):
+        os.mkdir(folder)
+    with open(f"{folder}/stat.txt", mode="w+") as f:
+        f.write("Removal counts:\n")
+        f.write("\n".join(map(lambda x: str(x), rs.removalCounts)))
 
 
 if __name__ == '__main__':
     rs = RemovalSimulation(5000, 10000)  # 5000 * 5000, 10000 agents
+    rs.distribution = (7, 2, 1)
     rs.init()
+    drawer = SpaceDrawer(colorMap=RemovalAgent.getColor)
     # rs.addAgent(RemovalAgent(1), (2.5, 2.5))
-    drawAndSave(rs)
-    for _ in range(30):
+    print("Counts of removal:")
+    drawer.drawAndSave(rs)
+    for i in range(50):
         rs.tick()
-        drawAndSave(rs)
+        if i < 20 or i % 5 == 0:
+            drawer.drawAndSave(rs)
+    saveStatistics(rs)
     # for a in rs.neighbours((2.5, 2.5), 6):
     #     print(a.pos)
     # plt.show()
